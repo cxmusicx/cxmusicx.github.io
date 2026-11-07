@@ -1,9 +1,16 @@
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,GoogleAuthProvider,signInWithPopup} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,updateDoc,addDoc,collection,getDocs,query,orderBy,limit,increment,arrayUnion,arrayRemove} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 /* Paste your Firebase web config here (Project settings > Your apps > Web). */
-const cfg={apiKey:"",authDomain:"",projectId:"",appId:""};
+const cfg={
+  apiKey:"AIzaSyADNNporzDNQxS2LHWEOUDG-pto6OvDY48",
+  authDomain:"cxmusicx.firebaseapp.com",
+  projectId:"cxmusicx",
+  storageBucket:"cxmusicx.firebasestorage.app",
+  messagingSenderId:"1021127536846",
+  appId:"1:1021127536846:web:7938a2fb0bd8be79ff609f"
+};
 
 const on=!!cfg.apiKey;
 let auth,db;
@@ -176,7 +183,7 @@ window.cxSaveLikes=()=>{if(me)updateDoc(uref(),{liked:[...liked]}).catch(()=>{})
 function vAcct(p){
   if(!on){p.innerHTML='<p class="empty" style="padding-left:0">Firebase is not set up yet. Paste your config at the top of cloud.js.</p>';return}
   if(me){p.innerHTML=`<div class="rl"><span class="rn">Signed in as <b>${esc(U.username||me.email.split('@')[0])}</b></span><button class="btn" id="so">Sign out</button></div>`;$('#so').onclick=()=>signOut(auth);return}
-  p.innerHTML=`<div style="max-width:320px"><input class="field" id="un" placeholder="Username" autocomplete="username"><input class="field" id="pw" type="password" placeholder="Password" autocomplete="current-password"><p id="er" class="label" style="color:var(--accent);min-height:18px;margin-bottom:10px"></p><button class="btn p" id="si">Sign in</button> <button class="btn" id="su">Create account</button></div>`;
+  p.innerHTML=`<div style="max-width:320px"><input class="field" id="un" placeholder="Username" autocomplete="username"><input class="field" id="pw" type="password" placeholder="Password" autocomplete="current-password"><p id="er" class="label" style="color:var(--accent);min-height:18px;margin-bottom:10px"></p><button class="btn p" id="si">Sign in</button> <button class="btn" id="su">Create account</button><div class="label" style="margin:18px 0 10px">or</div><button class="btn" id="gg">Continue with Google</button></div>`;
   const go=async up=>{
     const u=$('#un').value.trim(),pw=$('#pw').value,er=m=>$('#er').textContent=m;
     if(!/^[a-z0-9_]{3,20}$/i.test(u))return er('Username: 3 to 20 letters, numbers or _');
@@ -192,6 +199,18 @@ function vAcct(p){
     }catch(x){er({'auth/email-already-in-use':'Username taken','auth/invalid-credential':'Wrong username or password','auth/weak-password':'Password too weak'}[x.code]||x.message)}
   };
   $('#si').onclick=()=>go(0);$('#su').onclick=()=>go(1);
+  $('#gg').onclick=async()=>{
+    try{
+      const c=await signInWithPopup(auth,new GoogleAuthProvider());
+      const ref=doc(db,'users',c.user.uid);
+      if(!(await getDoc(ref)).exists()){
+        const name=(c.user.displayName||c.user.email.split('@')[0]).replace(/[^a-z0-9_]/gi,'').slice(0,20)||'listener';
+        await setDoc(ref,{username:name,liked:[...liked],following:[],playlists:[],listens:0,secs:0});
+        await setDoc(doc(db,'profiles',c.user.uid),{username:name,listens:0});
+      }
+      await loadUser();
+    }catch(x){if(x.code!=='auth/popup-closed-by-user'&&x.code!=='auth/cancelled-popup-request')$('#er').textContent=x.message}
+  };
 }
 async function loadUser(){
   if(!me){U={};$('.foot').textContent='guest'}
